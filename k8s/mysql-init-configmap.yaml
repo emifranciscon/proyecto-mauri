@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init-sql
+  namespace: asientos
+data:
+  01_schema.sql: |
+    USE asientos;
+
+    CREATE TABLE IF NOT EXISTS users (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_users_deleted_at (deleted_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS tanques (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(255) NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_tanques_deleted_at (deleted_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS balanzas (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(255) NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_balanzas_deleted_at (deleted_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS asientos (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        fecha DATE NOT NULL,
+        tanque_id BIGINT UNSIGNED NOT NULL,
+        balanza_id BIGINT UNSIGNED NOT NULL,
+        descripcion TEXT NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_asientos_tanque_id (tanque_id),
+        INDEX idx_asientos_balanza_id (balanza_id),
+        INDEX idx_asientos_deleted_at (deleted_at),
+        CONSTRAINT fk_asientos_tanque FOREIGN KEY (tanque_id) REFERENCES tanques(id),
+        CONSTRAINT fk_asientos_balanza FOREIGN KEY (balanza_id) REFERENCES balanzas(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS tanque_historiales (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        tanque_id BIGINT UNSIGNED NOT NULL,
+        fecha_asignacion DATE NOT NULL,
+        asiento_id BIGINT UNSIGNED NULL,
+        descripcion TEXT NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_tanque_historiales_tanque_id (tanque_id),
+        INDEX idx_tanque_historiales_deleted_at (deleted_at),
+        CONSTRAINT fk_tanque_historial_tanque FOREIGN KEY (tanque_id) REFERENCES tanques(id),
+        CONSTRAINT fk_tanque_historial_asiento FOREIGN KEY (asiento_id) REFERENCES asientos(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS balanza_historiales (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        balanza_id BIGINT UNSIGNED NOT NULL,
+        fecha_asignacion DATE NOT NULL,
+        asiento_id BIGINT UNSIGNED NULL,
+        descripcion TEXT NOT NULL,
+        created_at DATETIME(3) NULL,
+        updated_at DATETIME(3) NULL,
+        deleted_at DATETIME(3) NULL,
+        INDEX idx_balanza_historiales_balanza_id (balanza_id),
+        INDEX idx_balanza_historiales_deleted_at (deleted_at),
+        CONSTRAINT fk_balanza_historial_balanza FOREIGN KEY (balanza_id) REFERENCES balanzas(id),
+        CONSTRAINT fk_balanza_historial_asiento FOREIGN KEY (asiento_id) REFERENCES asientos(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

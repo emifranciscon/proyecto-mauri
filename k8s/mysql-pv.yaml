@@ -1,0 +1,16 @@
+# Optional: static PV for clusters without a default StorageClass (e.g. minikube/kind lab).
+# Uses storageClassName: manual — must match volumeClaimTemplates in mysql-statefulset.yaml.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv-asientos
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /tmp/k8s-mysql-asientos-data
+    type: DirectoryOrCreate

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: asientos
+data:
+  PORT: "8080"
+  DB_HOST: "mysql.asientos.svc.cluster.local"
+  DB_PORT: "3306"
+  # Comma-separated browser origins allowed to call the API (CORS).
+  CORS_ORIGINS: "https://asientos.example.com"

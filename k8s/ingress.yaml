@@ -1,0 +1,36 @@
+# Optional: single host for SPA + API so the browser can use same-origin /api (empty VITE_API_URL).
+# Requires an Ingress controller (nginx, traefik, etc.). Adjust host and ingressClassName.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: asientos
+  namespace: asientos
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: asientos.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
