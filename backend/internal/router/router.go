@@ -1,6 +1,7 @@
 package router
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -62,18 +63,32 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	return r
 }
 
+func normalizeOrigin(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimSuffix(s, "/")
+	return s
+}
+
 func corsMiddleware(origins []string) gin.HandlerFunc {
 	allow := make(map[string]struct{}, len(origins))
 	for _, o := range origins {
-		allow[o] = struct{}{}
+		o = normalizeOrigin(o)
+		if o != "" {
+			allow[o] = struct{}{}
+		}
 	}
 	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if _, ok := allow[origin]; ok {
-			c.Header("Access-Control-Allow-Origin", origin)
+		reqOrigin := normalizeOrigin(c.GetHeader("Origin"))
+		if reqOrigin != "" {
+			if _, ok := allow[reqOrigin]; ok {
+				c.Header("Access-Control-Allow-Origin", reqOrigin)
+				c.Header("Vary", "Origin")
+			}
 		}
-		c.Header("Access-Control-Allow-Headers", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Header("Access-Control-Max-Age", "86400")
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
