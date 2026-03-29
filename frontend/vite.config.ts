@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 const apiTarget = process.env.VITE_DEV_PROXY_TARGET || "http://127.0.0.1:8080";
 
 export default defineConfig({
+  envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   plugins: [react()],
   server: {
     port: 5173,

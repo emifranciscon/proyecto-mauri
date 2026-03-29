@@ -1,4 +1,13 @@
-const apiBase = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+/** Vercel: NEXT_PUBLIC_API_URL. Fallback VITE_API_URL. Sin valor: rutas relativas + proxy en dev. */
+function apiBaseUrl(): string {
+  const raw =
+    import.meta.env.NEXT_PUBLIC_API_URL ||
+    import.meta.env.VITE_API_URL ||
+    "";
+  return String(raw).replace(/\/$/, "");
+}
+
+const apiBase = apiBaseUrl();
 
 function authHeader(token: string | null): HeadersInit {
   const h: Record<string, string> = { "Content-Type": "application/json" };

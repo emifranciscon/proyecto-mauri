@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 )
@@ -76,8 +77,16 @@ func trimSpace(s string) string {
 }
 
 func (c *Config) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4&loc=UTC",
-		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName)
+	q := url.Values{}
+	q.Set("parseTime", "true")
+	q.Set("charset", "utf8mb4")
+	q.Set("loc", "UTC")
+	if tls := os.Getenv("DB_TLS"); tls != "" {
+		// e.g. skip-verify or true — required by many managed MySQL providers (Aiven, etc.)
+		q.Set("tls", tls)
+	}
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?%s",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName, q.Encode())
 }
 
 func (c *Config) DBMaxOpen() int {
