@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch, type HistorialRow, type Tanque, type Asiento } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { exportDataTablePdf, historialRowsToBody } from "../utils/pdfTableExport";
 
 function fmtDate(s: string) {
   return s?.slice(0, 10) ?? "";
@@ -76,6 +77,26 @@ export function TanquesPage() {
       await refreshList();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    }
+  }
+
+  function exportHistorialPdf() {
+    if (!selected) return;
+    setError(null);
+    try {
+      exportDataTablePdf({
+        documentTitle: "Historial de tanques",
+        subtitle: `Tanque: ${selected.nombre}`,
+        head: ["Fecha asignación", "Registro de asiento", "Descripción"],
+        body: historialRowsToBody(historial),
+        fileBaseName: `historial-tanque-${selected.nombre}`,
+        landscape: true,
+        emptyPlaceholder: ["Sin historial.", "", ""],
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo generar el PDF. Probá de nuevo."
+      );
     }
   }
 
@@ -185,13 +206,22 @@ export function TanquesPage() {
               Historial{selected ? `: ${selected.nombre}` : ""}
             </h2>
             {selected && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setHistModal(true)}
-              >
-                Nuevo registro
-              </button>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={exportHistorialPdf}
+                >
+                  Exportar PDF
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setHistModal(true)}
+                >
+                  Nuevo registro
+                </button>
+              </div>
             )}
           </div>
           {!selected ? (
