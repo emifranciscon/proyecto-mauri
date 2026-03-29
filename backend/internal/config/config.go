@@ -29,7 +29,7 @@ func Load() (*Config, error) {
 	if user == "" || pass == "" || secret == "" {
 		return nil, fmt.Errorf("DB_USER, DB_PASSWORD, and JWT_SECRET are required")
 	}
-	cors := getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+	cors := getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://proyecto-mauri.vercel.app")
 	origins := splitComma(cors)
 	return &Config{
 		Port:        port,
