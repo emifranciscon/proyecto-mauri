@@ -75,7 +75,7 @@ export function AsientosPage() {
           gap: "0.75rem",
         }}
       >
-        <h1 style={{ margin: 0 }}>Sistema de control de inventario. Para Mauri.</h1>
+        <h1 style={{ margin: 0 }}>Asientos</h1>
         <button type="button" className="btn btn-primary" onClick={() => setModal(true)}>
           Nuevo asiento
         </button>
