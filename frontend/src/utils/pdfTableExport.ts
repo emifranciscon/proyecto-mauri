@@ -6,18 +6,87 @@ function fmtDate(s: string) {
   return s?.slice(0, 10) ?? "";
 }
 
-function historialRegistroCell(h: HistorialRow): string {
-  return h.asiento_id
-    ? `#${h.asiento_id}${h.asiento ? ` — ${fmtDate(h.asiento.fecha)}` : ""}`
-    : "—";
+function fmtHistorialMeta(s: string | undefined): string {
+  if (s == null || String(s).trim() === "") return "—";
+  return String(s);
 }
 
-/** Row cells matching the Historial table on Tanques / Balanzas pages. */
-export function historialRowsToBody(rows: HistorialRow[]): string[][] {
+function descripcionHistorialCell(h: HistorialRow): string {
+  const d = h.descripcion?.trim() || h.asiento?.descripcion?.trim();
+  return d || "—";
+}
+
+/** Same text as table/PDF description column (UI + export). */
+export function historialDescripcionPlain(h: HistorialRow): string {
+  return descripcionHistorialCell(h);
+}
+
+/** Label for timeline/PDF from persisted tipo_operacion (legacy empty → Ingreso). */
+export function historialOperacionLabel(h: HistorialRow): string {
+  const t = h.tipo_operacion?.trim().toLowerCase();
+  if (t === "egreso") return "Egreso";
+  return "Ingreso";
+}
+
+function asientoLineTipo(tipo: string | undefined): string {
+  return tipo?.trim().toLowerCase() === "egreso" ? "Egreso" : "Ingreso";
+}
+
+function fallbackBalanzasFromAsiento(h: HistorialRow): string {
+  const a = h.asiento;
+  if (!a?.asiento_balanzas?.length) return "—";
+  return a.asiento_balanzas
+    .map(
+      (x) =>
+        `${x.balanza?.nombre ?? x.balanza_id} (${asientoLineTipo(x.tipo_operacion)} ${x.cantidad})`
+    )
+    .join(", ");
+}
+
+function fallbackTanquesFromAsiento(h: HistorialRow): string {
+  const a = h.asiento;
+  if (!a?.asiento_tanques?.length) return "—";
+  return a.asiento_tanques
+    .map(
+      (x) =>
+        `${x.tanque?.nombre ?? x.tanque_id} (${asientoLineTipo(x.tipo_operacion)} ${x.cantidad})`
+    )
+    .join(", ");
+}
+
+/** UI + PDF: balanzas column for historial de tanques. */
+export function balanzasResumenDisplay(h: HistorialRow): string {
+  if (h.balanzas_resumen?.trim()) return h.balanzas_resumen.trim();
+  return fallbackBalanzasFromAsiento(h);
+}
+
+/** UI + PDF: tanques column for historial de balanzas. */
+export function tanquesResumenDisplay(h: HistorialRow): string {
+  if (h.tanques_resumen?.trim()) return h.tanques_resumen.trim();
+  return fallbackTanquesFromAsiento(h);
+}
+
+/** PDF rows for historial de tanques (tanque omitted; shown in PDF subtitle). */
+export function historialRowsToBodyTanque(rows: HistorialRow[]): string[][] {
   return rows.map((h) => [
     fmtDate(h.fecha_asignacion),
-    historialRegistroCell(h),
-    h.descripcion ?? "",
+    historialOperacionLabel(h),
+    balanzasResumenDisplay(h),
+    descripcionHistorialCell(h),
+    fmtHistorialMeta(h.cantidad_movimiento),
+    h.asiento_id != null ? String(h.asiento_id) : "—",
+  ]);
+}
+
+/** PDF rows for historial de balanzas (balanza omitted; shown in PDF subtitle). */
+export function historialRowsToBodyBalanza(rows: HistorialRow[]): string[][] {
+  return rows.map((h) => [
+    fmtDate(h.fecha_asignacion),
+    historialOperacionLabel(h),
+    tanquesResumenDisplay(h),
+    descripcionHistorialCell(h),
+    fmtHistorialMeta(h.cantidad_movimiento),
+    h.asiento_id != null ? String(h.asiento_id) : "—",
   ]);
 }
 
@@ -58,8 +127,7 @@ export function exportDataTablePdf(params: ExportDataTablePdfParams): void {
       ? emptyPlaceholder
       : Array.from({ length: colCount }, (_, i) => (i === 0 ? "Sin datos." : ""));
 
-  const tableBody =
-    body.length > 0 ? body : [placeholder];
+  const tableBody = body.length > 0 ? body : [placeholder];
 
   const doc = new jsPDF({
     orientation: landscape ? "landscape" : "portrait",
@@ -76,7 +144,10 @@ export function exportDataTablePdf(params: ExportDataTablePdfParams): void {
   if (subtitle) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    const subtitleLines = doc.splitTextToSize(subtitle, doc.internal.pageSize.getWidth() - margin * 2);
+    const subtitleLines = doc.splitTextToSize(
+      subtitle,
+      doc.internal.pageSize.getWidth() - margin * 2
+    );
     doc.text(subtitleLines, margin, y);
     y += Math.max(6, subtitleLines.length * 5);
   }

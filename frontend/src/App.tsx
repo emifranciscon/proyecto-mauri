@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { useAuth } from "./context/AuthContext";
 import { LoginPage } from "./pages/LoginPage";
 import { AsientosPage } from "./pages/AsientosPage";
+import { AsientoDetailPage } from "./pages/AsientoDetailPage";
 import { TanquesPage } from "./pages/TanquesPage";
 import { BalanzasPage } from "./pages/BalanzasPage";
 
@@ -31,11 +32,13 @@ export default function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<AsientosPage />} />
+        <Route index element={<Navigate to="/asientos" replace />} />
+        <Route path="asientos" element={<AsientosPage />} />
+        <Route path="asientos/:id" element={<AsientoDetailPage />} />
         <Route path="tanques" element={<TanquesPage />} />
         <Route path="balanzas" element={<BalanzasPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/asientos" replace />} />
     </Routes>
   );
 }

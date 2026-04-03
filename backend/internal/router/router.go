@@ -9,6 +9,7 @@ import (
 	"github.com/proyecto-mauri/backend/internal/config"
 	"github.com/proyecto-mauri/backend/internal/handlers"
 	"github.com/proyecto-mauri/backend/internal/middleware"
+	"github.com/proyecto-mauri/backend/internal/service"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	jwtSecret := []byte(cfg.JWTSecret)
 	ttl := 24 * time.Hour
 	auth := &handlers.AuthHandler{DB: db, JWTSecret: jwtSecret, JWTTTL: ttl}
-	asientos := &handlers.AsientoHandler{DB: db}
+	asientoSvc := service.NewAsientoService(db)
+	asientos := &handlers.AsientoHandler{DB: db, Svc: asientoSvc}
 	tanques := &handlers.TanqueHandler{DB: db}
 	balanzas := &handlers.BalanzaHandler{DB: db}
 

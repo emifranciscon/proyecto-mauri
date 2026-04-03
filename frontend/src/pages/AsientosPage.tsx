@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   apiFetch,
   type Asiento,
@@ -7,8 +8,49 @@ import {
 } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
-function fmtDate(s: string) {
-  return s?.slice(0, 10) ?? "";
+function formatAsientoFechaShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function lineTipoLabel(tipo: string | undefined): string {
+  return tipo?.trim().toLowerCase() === "egreso" ? "Egreso" : "Ingreso";
+}
+
+function formatTanquesCell(a: Asiento): string {
+  const lines = a.asiento_tanques ?? [];
+  if (lines.length === 0) return "—";
+  return lines
+    .map(
+      (x) =>
+        `${x.tanque?.nombre ?? x.tanque_id} (${lineTipoLabel(x.tipo_operacion)} ${x.cantidad})`
+    )
+    .join(", ");
+}
+
+function formatBalanzasCell(a: Asiento): string {
+  const lines = a.asiento_balanzas ?? [];
+  if (lines.length === 0) return "—";
+  return lines
+    .map(
+      (x) =>
+        `${x.balanza?.nombre ?? x.balanza_id} (${lineTipoLabel(x.tipo_operacion)} ${x.cantidad})`
+    )
+    .join(", ");
+}
+
+function toDatetimeLocalValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+type Line = { id: string; refId: string; tipo_operacion: "ingreso" | "egreso" };
+
+let lineSeq = 0;
+function newLine(): Line {
+  lineSeq += 1;
+  return { id: `l-${lineSeq}-${Date.now()}`, refId: "", tipo_operacion: "ingreso" };
 }
 
 export function AsientosPage() {
@@ -18,11 +60,9 @@ export function AsientosPage() {
   const [balanzas, setBalanzas] = useState<Balanza[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState(false);
-  const [fecha, setFecha] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
-  const [tanqueId, setTanqueId] = useState("");
-  const [balanzaId, setBalanzaId] = useState("");
+  const [fecha, setFecha] = useState(() => toDatetimeLocalValue(new Date()));
+  const [tanqueLines, setTanqueLines] = useState<Line[]>([newLine()]);
+  const [balanzaLines, setBalanzaLines] = useState<Line[]>([newLine()]);
   const [descripcion, setDescripcion] = useState("");
 
   const load = useCallback(async () => {
@@ -41,18 +81,42 @@ export function AsientosPage() {
     load().catch((e) => setError(String(e.message)));
   }, [load]);
 
+  function openModal() {
+    setTanqueLines([newLine()]);
+    setBalanzaLines([newLine()]);
+    setFecha(toDatetimeLocalValue(new Date()));
+    setDescripcion("");
+    setModal(true);
+  }
+
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const tanquesPayload = tanqueLines
+      .filter((l) => l.refId)
+      .map((l) => ({
+        tanque_id: Number(l.refId),
+        tipo_operacion: l.tipo_operacion,
+      }));
+    const balanzasPayload = balanzaLines
+      .filter((l) => l.refId)
+      .map((l) => ({
+        balanza_id: Number(l.refId),
+        tipo_operacion: l.tipo_operacion,
+      }));
+    if (tanquesPayload.length === 0 || balanzasPayload.length === 0) {
+      setError("Agregá al menos un tanque y una balanza.");
+      return;
+    }
     try {
       await apiFetch("/api/asientos", {
         method: "POST",
         token,
         body: JSON.stringify({
           fecha,
-          tanque_id: Number(tanqueId),
-          balanza_id: Number(balanzaId),
           descripcion,
+          tanques: tanquesPayload,
+          balanzas: balanzasPayload,
         }),
       });
       setModal(false);
@@ -76,7 +140,7 @@ export function AsientosPage() {
         }}
       >
         <h1 style={{ margin: 0 }}>Asientos</h1>
-        <button type="button" className="btn btn-primary" onClick={() => setModal(true)}>
+        <button type="button" className="btn btn-primary" onClick={openModal}>
           Nuevo asiento
         </button>
       </div>
@@ -86,8 +150,8 @@ export function AsientosPage() {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Tanque</th>
-              <th>Balanza</th>
+              <th>Tanques</th>
+              <th>Balanzas</th>
               <th>Descripción</th>
             </tr>
           </thead>
@@ -101,9 +165,13 @@ export function AsientosPage() {
             ) : (
               rows.map((r) => (
                 <tr key={r.id}>
-                  <td>{fmtDate(r.fecha)}</td>
-                  <td>{r.tanque?.nombre ?? r.tanque_id}</td>
-                  <td>{r.balanza?.nombre ?? r.balanza_id}</td>
+                  <td>
+                    <Link to={`/asientos/${r.id}`} className="asiento-list-link">
+                      {formatAsientoFechaShort(r.fecha)}
+                    </Link>
+                  </td>
+                  <td>{formatTanquesCell(r)}</td>
+                  <td>{formatBalanzasCell(r)}</td>
                   <td>{r.descripcion}</td>
                 </tr>
               ))
@@ -115,7 +183,7 @@ export function AsientosPage() {
       {modal && (
         <div className="modal-backdrop" role="presentation" onClick={() => setModal(false)}>
           <div
-            className="modal"
+            className="modal modal--asiento"
             role="dialog"
             aria-labelledby="asiento-title"
             onClick={(e) => e.stopPropagation()}
@@ -123,49 +191,137 @@ export function AsientosPage() {
             <h2 id="asiento-title">Nuevo asiento</h2>
             <form onSubmit={create}>
               <div className="field">
-                <label htmlFor="fecha">Fecha</label>
+                <label htmlFor="fecha">Fecha y hora</label>
                 <input
                   id="fecha"
                   className="input"
-                  type="date"
+                  type="datetime-local"
                   value={fecha}
                   onChange={(e) => setFecha(e.target.value)}
                   required
                 />
               </div>
               <div className="field">
-                <label htmlFor="tanque">Tanque</label>
-                <select
-                  id="tanque"
-                  className="text-input"
-                  value={tanqueId}
-                  onChange={(e) => setTanqueId(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar…</option>
-                  {tanques.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nombre}
-                    </option>
-                  ))}
-                </select>
+                <div className="asiento-form-section-head">
+                  <label>Tanques</label>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+                    onClick={() => setTanqueLines((prev) => [...prev, newLine()])}
+                  >
+                    + Agregar tanque
+                  </button>
+                </div>
+                {tanqueLines.map((line, i) => (
+                  <div key={line.id} className="asiento-form-line">
+                    <select
+                      className="text-input"
+                      value={line.refId}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setTanqueLines((prev) =>
+                          prev.map((x) => (x.id === line.id ? { ...x, refId: v } : x))
+                        );
+                      }}
+                      required={i === 0}
+                      aria-label="Tanque"
+                    >
+                      <option value="">Seleccionar…</option>
+                      {tanques.map((t) => (
+                        <option key={t.id} value={String(t.id)}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="text-input"
+                      value={line.tipo_operacion}
+                      onChange={(e) => {
+                        const v = e.target.value as "ingreso" | "egreso";
+                        setTanqueLines((prev) =>
+                          prev.map((x) => (x.id === line.id ? { ...x, tipo_operacion: v } : x))
+                        );
+                      }}
+                      aria-label="Tipo de movimiento (tanque)"
+                    >
+                      <option value="ingreso">Ingreso</option>
+                      <option value="egreso">Egreso</option>
+                    </select>
+                    {tanqueLines.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() =>
+                          setTanqueLines((prev) => prev.filter((x) => x.id !== line.id))
+                        }
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="field">
-                <label htmlFor="balanza">Balanza</label>
-                <select
-                  id="balanza"
-                  className="text-input"
-                  value={balanzaId}
-                  onChange={(e) => setBalanzaId(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar…</option>
-                  {balanzas.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.nombre}
-                    </option>
-                  ))}
-                </select>
+                <div className="asiento-form-section-head">
+                  <label>Balanzas</label>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+                    onClick={() => setBalanzaLines((prev) => [...prev, newLine()])}
+                  >
+                    + Agregar balanza
+                  </button>
+                </div>
+                {balanzaLines.map((line, i) => (
+                  <div key={line.id} className="asiento-form-line">
+                    <select
+                      className="text-input"
+                      value={line.refId}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setBalanzaLines((prev) =>
+                          prev.map((x) => (x.id === line.id ? { ...x, refId: v } : x))
+                        );
+                      }}
+                      required={i === 0}
+                      aria-label="Balanza"
+                    >
+                      <option value="">Seleccionar…</option>
+                      {balanzas.map((b) => (
+                        <option key={b.id} value={String(b.id)}>
+                          {b.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="text-input"
+                      value={line.tipo_operacion}
+                      onChange={(e) => {
+                        const v = e.target.value as "ingreso" | "egreso";
+                        setBalanzaLines((prev) =>
+                          prev.map((x) => (x.id === line.id ? { ...x, tipo_operacion: v } : x))
+                        );
+                      }}
+                      aria-label="Tipo de movimiento (balanza)"
+                    >
+                      <option value="ingreso">Ingreso</option>
+                      <option value="egreso">Egreso</option>
+                    </select>
+                    {balanzaLines.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() =>
+                          setBalanzaLines((prev) => prev.filter((x) => x.id !== line.id))
+                        }
+                      >
+                        Quitar
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="field">
                 <label htmlFor="desc">Descripción</label>

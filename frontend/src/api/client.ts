@@ -44,22 +44,47 @@ export async function apiFetch<T>(
 
 export type User = { id: number; email: string };
 
-export type Tanque = { id: number; nombre: string };
-export type Balanza = { id: number; nombre: string };
+export type Tanque = { id: number; nombre: string; saldo?: string };
+export type Balanza = { id: number; nombre: string; saldo?: string };
+
+export type AsientoTanqueRow = {
+  id?: number;
+  asiento_id?: number;
+  tanque_id: number;
+  cantidad: string;
+  tipo_operacion?: string;
+  tanque?: Tanque;
+};
+
+export type AsientoBalanzaRow = {
+  id?: number;
+  asiento_id?: number;
+  balanza_id: number;
+  cantidad: string;
+  tipo_operacion?: string;
+  balanza?: Balanza;
+};
+
 export type Asiento = {
   id: number;
   fecha: string;
-  tanque_id: number;
-  balanza_id: number;
   descripcion: string;
-  tanque?: Tanque;
-  balanza?: Balanza;
+  asiento_tanques?: AsientoTanqueRow[];
+  asiento_balanzas?: AsientoBalanzaRow[];
 };
 
 export type HistorialRow = {
   id: number;
+  tanque_id?: number;
+  balanza_id?: number;
   fecha_asignacion: string;
   asiento_id?: number | null;
   descripcion: string;
+  balanzas_resumen?: string;
+  tanques_resumen?: string;
+  cantidad_movimiento?: string;
+  tipo_operacion?: string;
+  tanque?: Tanque;
+  balanza?: Balanza;
   asiento?: Asiento | null;
 };

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { apiFetch, type HistorialRow, type Tanque, type Asiento } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { exportDataTablePdf, historialRowsToBody } from "../utils/pdfTableExport";
+import { HistorialTimeline } from "../components/HistorialTimeline";
+import { exportDataTablePdf, historialRowsToBodyTanque } from "../utils/pdfTableExport";
 
 function fmtDate(s: string) {
   return s?.slice(0, 10) ?? "";
@@ -9,6 +11,7 @@ function fmtDate(s: string) {
 
 export function TanquesPage() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [list, setList] = useState<Tanque[]>([]);
   const [selected, setSelected] = useState<Tanque | null>(null);
   const [historial, setHistorial] = useState<HistorialRow[]>([]);
@@ -53,6 +56,15 @@ export function TanquesPage() {
   }, [refreshList]);
 
   useEffect(() => {
+    const tid = searchParams.get("tanque");
+    if (!tid || list.length === 0) return;
+    const n = Number(tid);
+    if (!Number.isFinite(n)) return;
+    const found = list.find((x) => x.id === n);
+    if (found) setSelected(found);
+  }, [list, searchParams]);
+
+  useEffect(() => {
     if (!selected || !token) {
       setHistorial([]);
       return;
@@ -87,11 +99,18 @@ export function TanquesPage() {
       exportDataTablePdf({
         documentTitle: "Historial de tanques",
         subtitle: `Tanque: ${selected.nombre}`,
-        head: ["Fecha asignación", "Registro de asiento", "Descripción"],
-        body: historialRowsToBody(historial),
+        head: [
+          "Fecha",
+          "Operación",
+          "Balanzas (asiento)",
+          "Descripción",
+          "Cantidad",
+          "Nº asiento",
+        ],
+        body: historialRowsToBodyTanque(historial),
         fileBaseName: `historial-tanque-${selected.nombre}`,
         landscape: true,
-        emptyPlaceholder: ["Sin historial.", "", ""],
+        emptyPlaceholder: ["Sin historial.", "", "", "", "", ""],
       });
     } catch (err) {
       setError(
@@ -228,36 +247,7 @@ export function TanquesPage() {
             <p style={{ color: "var(--muted)" }}>Seleccioná un tanque.</p>
           ) : (
             <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha asignación</th>
-                    <th>Registro de asiento</th>
-                    <th>Descripción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historial.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} style={{ color: "var(--muted)" }}>
-                        Sin historial.
-                      </td>
-                    </tr>
-                  ) : (
-                    historial.map((h) => (
-                      <tr key={h.id}>
-                        <td>{fmtDate(h.fecha_asignacion)}</td>
-                        <td>
-                          {h.asiento_id
-                            ? `#${h.asiento_id}${h.asiento ? ` — ${fmtDate(h.asiento.fecha)}` : ""}`
-                            : "—"}
-                        </td>
-                        <td>{h.descripcion}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+              <HistorialTimeline variant="tanque" rows={historial} />
             </div>
           )}
         </div>

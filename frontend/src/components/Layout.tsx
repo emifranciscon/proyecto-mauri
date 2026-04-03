@@ -36,7 +36,7 @@ export function Layout() {
           Sistema de control de inventario. Para Mauri.
         </span>
         <nav style={{ display: "flex", gap: "0.35rem", flex: 1 }}>
-          <NavLink to="/" end style={linkStyle}>
+          <NavLink to="/asientos" style={linkStyle}>
             Asientos
           </NavLink>
           <NavLink to="/tanques" style={linkStyle}>

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { apiFetch, type HistorialRow, type Balanza, type Asiento } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import { exportDataTablePdf, historialRowsToBody } from "../utils/pdfTableExport";
+import { HistorialTimeline } from "../components/HistorialTimeline";
+import { exportDataTablePdf, historialRowsToBodyBalanza } from "../utils/pdfTableExport";
 
 function fmtDate(s: string) {
   return s?.slice(0, 10) ?? "";
@@ -9,6 +11,7 @@ function fmtDate(s: string) {
 
 export function BalanzasPage() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [list, setList] = useState<Balanza[]>([]);
   const [selected, setSelected] = useState<Balanza | null>(null);
   const [historial, setHistorial] = useState<HistorialRow[]>([]);
@@ -53,6 +56,15 @@ export function BalanzasPage() {
   }, [refreshList]);
 
   useEffect(() => {
+    const bid = searchParams.get("balanza");
+    if (!bid || list.length === 0) return;
+    const n = Number(bid);
+    if (!Number.isFinite(n)) return;
+    const found = list.find((x) => x.id === n);
+    if (found) setSelected(found);
+  }, [list, searchParams]);
+
+  useEffect(() => {
     if (!selected || !token) {
       setHistorial([]);
       return;
@@ -71,11 +83,18 @@ export function BalanzasPage() {
       exportDataTablePdf({
         documentTitle: "Historial de balanzas",
         subtitle: `Balanza: ${selected.nombre}`,
-        head: ["Fecha asignación", "Registro de asiento", "Descripción"],
-        body: historialRowsToBody(historial),
+        head: [
+          "Fecha",
+          "Operación",
+          "Tanques (asiento)",
+          "Descripción",
+          "Cantidad",
+          "Nº asiento",
+        ],
+        body: historialRowsToBodyBalanza(historial),
         fileBaseName: `historial-balanza-${selected.nombre}`,
         landscape: true,
-        emptyPlaceholder: ["Sin historial.", "", ""],
+        emptyPlaceholder: ["Sin historial.", "", "", "", "", ""],
       });
     } catch (err) {
       setError(
@@ -227,36 +246,7 @@ export function BalanzasPage() {
             <p style={{ color: "var(--muted)" }}>Seleccioná una balanza.</p>
           ) : (
             <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha asignación</th>
-                    <th>Registro de asiento</th>
-                    <th>Descripción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historial.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} style={{ color: "var(--muted)" }}>
-                        Sin historial.
-                      </td>
-                    </tr>
-                  ) : (
-                    historial.map((h) => (
-                      <tr key={h.id}>
-                        <td>{fmtDate(h.fecha_asignacion)}</td>
-                        <td>
-                          {h.asiento_id
-                            ? `#${h.asiento_id}${h.asiento ? ` — ${fmtDate(h.asiento.fecha)}` : ""}`
-                            : "—"}
-                        </td>
-                        <td>{h.descripcion}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+              <HistorialTimeline variant="balanza" rows={historial} />
             </div>
           )}
         </div>

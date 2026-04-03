@@ -36,16 +36,20 @@ func Connect(cfg *config.Config) (*gorm.DB, error) {
 			sqlDB.SetConnMaxLifetime(time.Hour)
 			if err = sqlDB.Ping(); err == nil {
 				log.Printf("database: connected after %d attempt(s)", attempt)
+				log.Printf("database: running AutoMigrate…")
 				if merr := db.AutoMigrate(
 					&models.User{},
 					&models.Tanque{},
 					&models.Balanza{},
 					&models.Asiento{},
+					&models.AsientoTanque{},
+					&models.AsientoBalanza{},
 					&models.TanqueHistorial{},
 					&models.BalanzaHistorial{},
 				); merr != nil {
 					return nil, fmt.Errorf("automigrate: %w", merr)
 				}
+				log.Printf("database: AutoMigrate finished OK")
 				return db, nil
 			}
 			_ = sqlDB.Close()

@@ -19,6 +19,7 @@ type balanzaHistorialBody struct {
 	FechaAsignacion string `json:"fecha_asignacion" binding:"required"`
 	AsientoID       *uint  `json:"asiento_id"`
 	Descripcion     string `json:"descripcion" binding:"required"`
+	TipoOperacion   string `json:"tipo_operacion"`
 }
 
 func (h *BalanzaHandler) List(c *gin.Context) {
@@ -83,7 +84,9 @@ func (h *BalanzaHandler) Delete(c *gin.Context) {
 func (h *BalanzaHandler) ListHistorial(c *gin.Context) {
 	balanzaID := c.Param("id")
 	var rows []models.BalanzaHistorial
-	if err := h.DB.Where("balanza_id = ?", balanzaID).Preload("Asiento").Order("fecha_asignacion desc, id desc").Find(&rows).Error; err != nil {
+	if err := h.DB.Where("balanza_id = ?", balanzaID).
+		Preload("Asiento.AsientoTanques.Tanque").Preload("Asiento.AsientoBalanzas.Balanza").
+		Order("fecha_asignacion desc, id desc").Find(&rows).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -112,11 +115,13 @@ func (h *BalanzaHandler) CreateHistorial(c *gin.Context) {
 		FechaAsignacion: fa,
 		AsientoID:       body.AsientoID,
 		Descripcion:     body.Descripcion,
+		TanquesResumen:  "",
+		TipoOperacion:   normalizeHistorialTipoOperacion(body.TipoOperacion),
 	}
 	if err := h.DB.Create(&row).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "could not create historial"})
 		return
 	}
-	_ = h.DB.Preload("Asiento").First(&row, row.ID).Error
+	_ = h.DB.Preload("Asiento.AsientoTanques.Tanque").Preload("Asiento.AsientoBalanzas.Balanza").First(&row, row.ID).Error
 	c.JSON(http.StatusCreated, row)
 }

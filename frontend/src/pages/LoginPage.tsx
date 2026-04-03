@@ -17,7 +17,7 @@ export function LoginPage() {
       </div>
     );
   }
-  if (token) return <Navigate to="/" replace />;
+  if (token) return <Navigate to="/asientos" replace />;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
