@@ -77,14 +77,14 @@ func lineCantidad(v *float64) (decimal.Decimal, error) {
 	return decimal.NewFromFloat(*v), nil
 }
 
-var errInvalidTipoOperacion = errors.New("tipo_operacion must be ingreso or egreso")
+var errInvalidTipoOperacion = errors.New("tipo_operacion must be ingreso, egreso, or mantenimiento")
 
 func parseTipoOperacion(s string) (string, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
 	if s == "" {
 		return "ingreso", nil
 	}
-	if s == "ingreso" || s == "egreso" {
+	if s == "ingreso" || s == "egreso" || s == "mantenimiento" {
 		return s, nil
 	}
 	return "", errInvalidTipoOperacion

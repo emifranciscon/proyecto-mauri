@@ -13,8 +13,13 @@ function formatHistorialFecha(s: string): string {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-function isEgreso(h: HistorialRow): boolean {
-  return h.tipo_operacion?.trim().toLowerCase() === "egreso";
+type OperacionVisual = "ingreso" | "egreso" | "mantenimiento";
+
+function operacionVisual(h: HistorialRow): OperacionVisual {
+  const t = h.tipo_operacion?.trim().toLowerCase();
+  if (t === "egreso") return "egreso";
+  if (t === "mantenimiento") return "mantenimiento";
+  return "ingreso";
 }
 
 function fmtMeta(s: string | undefined): string {
@@ -45,35 +50,36 @@ export function HistorialTimeline({ variant, rows }: Props) {
       <p className="historial-timeline-hint">Orden: más reciente arriba (igual que antes en la tabla).</p>
       <ol className="historial-timeline-list" role="list">
         {rows.map((h) => {
-          const egreso = isEgreso(h);
+          const op = operacionVisual(h);
           const ctx =
             variant === "tanque" ? balanzasResumenDisplay(h) : tanquesResumenDisplay(h);
           const ctxLabel = variant === "tanque" ? "Balanzas (asiento)" : "Tanques (asiento)";
+          const dotClass =
+            op === "egreso"
+              ? "historial-timeline-dot historial-timeline-dot--egreso"
+              : op === "mantenimiento"
+                ? "historial-timeline-dot historial-timeline-dot--mantenimiento"
+                : "historial-timeline-dot historial-timeline-dot--ingreso";
+          const opClass =
+            op === "egreso"
+              ? "historial-timeline-op historial-timeline-op--egreso"
+              : op === "mantenimiento"
+                ? "historial-timeline-op historial-timeline-op--mantenimiento"
+                : "historial-timeline-op historial-timeline-op--ingreso";
+          const arrow =
+            op === "egreso" ? "↓" : op === "mantenimiento" ? "◆" : "↑";
 
           return (
             <li key={h.id} className="historial-timeline-item">
-              <span
-                className={
-                  egreso
-                    ? "historial-timeline-dot historial-timeline-dot--egreso"
-                    : "historial-timeline-dot historial-timeline-dot--ingreso"
-                }
-                aria-hidden
-              />
+              <span className={dotClass} aria-hidden />
               <article className="historial-timeline-card">
                 <header className="historial-timeline-head">
                   <time className="historial-timeline-time" dateTime={h.fecha_asignacion}>
                     {formatHistorialFecha(h.fecha_asignacion)}
                   </time>
-                  <span
-                    className={
-                      egreso
-                        ? "historial-timeline-op historial-timeline-op--egreso"
-                        : "historial-timeline-op historial-timeline-op--ingreso"
-                    }
-                  >
+                  <span className={opClass}>
                     <span className="historial-timeline-arrow" aria-hidden>
-                      {egreso ? "↓" : "↑"}
+                      {arrow}
                     </span>
                     {historialOperacionLabel(h)}
                   </span>

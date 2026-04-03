@@ -17,7 +17,10 @@ function formatAsientoFecha(iso: string): string {
 }
 
 function lineTipoShort(tipo: string | undefined): string {
-  return tipo?.trim().toLowerCase() === "egreso" ? "Egreso" : "Ingreso";
+  const t = tipo?.trim().toLowerCase();
+  if (t === "egreso") return "Egreso";
+  if (t === "mantenimiento") return "Mantenimiento";
+  return "Ingreso";
 }
 
 function ChipTanque({ row }: { row: AsientoTanqueRow }) {

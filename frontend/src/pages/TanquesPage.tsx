@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { apiFetch, type HistorialRow, type Tanque, type Asiento } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -22,6 +22,10 @@ export function TanquesPage() {
   const [fa, setFa] = useState(() => new Date().toISOString().slice(0, 10));
   const [asientoId, setAsientoId] = useState("");
   const [hDesc, setHDesc] = useState("");
+  const [savingTanque, setSavingTanque] = useState(false);
+  const [savingHistorial, setSavingHistorial] = useState(false);
+  const savingTanqueRef = useRef(false);
+  const savingHistorialRef = useRef(false);
 
   const refreshList = useCallback(async () => {
     if (!token) return;
@@ -78,7 +82,10 @@ export function TanquesPage() {
 
   async function addTanque(e: React.FormEvent) {
     e.preventDefault();
+    if (savingTanqueRef.current) return;
     setError(null);
+    savingTanqueRef.current = true;
+    setSavingTanque(true);
     try {
       await apiFetch("/api/tanques", {
         method: "POST",
@@ -89,6 +96,9 @@ export function TanquesPage() {
       await refreshList();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      savingTanqueRef.current = false;
+      setSavingTanque(false);
     }
   }
 
@@ -121,8 +131,10 @@ export function TanquesPage() {
 
   async function addHistorial(e: React.FormEvent) {
     e.preventDefault();
-    if (!selected) return;
+    if (!selected || savingHistorialRef.current) return;
     setError(null);
+    savingHistorialRef.current = true;
+    setSavingHistorial(true);
     try {
       const body: Record<string, unknown> = {
         fecha_asignacion: fa,
@@ -140,6 +152,9 @@ export function TanquesPage() {
       await loadHistorial(selected.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      savingHistorialRef.current = false;
+      setSavingHistorial(false);
     }
   }
 
@@ -175,8 +190,13 @@ export function TanquesPage() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
-              Agregar
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: "100%" }}
+              disabled={savingTanque}
+            >
+              {savingTanque ? "Agregando…" : "Agregar"}
             </button>
           </form>
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -257,7 +277,7 @@ export function TanquesPage() {
         <div
           className="modal-backdrop"
           role="presentation"
-          onClick={() => setHistModal(false)}
+          onClick={() => !savingHistorial && setHistModal(false)}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Historial — {selected.nombre}</h2>
@@ -304,12 +324,13 @@ export function TanquesPage() {
                 <button
                   type="button"
                   className="btn btn-ghost"
+                  disabled={savingHistorial}
                   onClick={() => setHistModal(false)}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Guardar
+                <button type="submit" className="btn btn-primary" disabled={savingHistorial}>
+                  {savingHistorial ? "Guardando…" : "Guardar"}
                 </button>
               </div>
             </form>

@@ -25,11 +25,15 @@ export function historialDescripcionPlain(h: HistorialRow): string {
 export function historialOperacionLabel(h: HistorialRow): string {
   const t = h.tipo_operacion?.trim().toLowerCase();
   if (t === "egreso") return "Egreso";
+  if (t === "mantenimiento") return "Mantenimiento";
   return "Ingreso";
 }
 
 function asientoLineTipo(tipo: string | undefined): string {
-  return tipo?.trim().toLowerCase() === "egreso" ? "Egreso" : "Ingreso";
+  const t = tipo?.trim().toLowerCase();
+  if (t === "egreso") return "Egreso";
+  if (t === "mantenimiento") return "Mantenimiento";
+  return "Ingreso";
 }
 
 function fallbackBalanzasFromAsiento(h: HistorialRow): string {

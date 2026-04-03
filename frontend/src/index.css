@@ -389,6 +389,10 @@ tr:hover td {
   background: #c45c5c;
 }
 
+.historial-timeline-dot--mantenimiento {
+  background: #8b9bab;
+}
+
 .historial-timeline-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -433,6 +437,10 @@ tr:hover td {
 
 .historial-timeline-op--egreso {
   color: #e8a0a0;
+}
+
+.historial-timeline-op--mantenimiento {
+  color: #b8c4d0;
 }
 
 .historial-timeline-arrow {
@@ -498,27 +506,231 @@ tr:hover td {
   }
 }
 
-.modal--asiento {
-  width: min(560px, 100%);
+.asiento-modal__header {
+  padding: 1.1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.asiento-form-section-head {
+.asiento-modal__header-lead {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 42rem;
+}
+
+.asiento-modal__header-lead strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.asiento-modal__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.asiento-modal__close:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.asiento-modal__close:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.asiento-modal__body {
+  padding: 1rem 1.25rem 1.15rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.asiento-modal__error {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  background: rgba(196, 92, 92, 0.12);
+  border: 1px solid rgba(196, 92, 92, 0.45);
+  color: #f0b4b4;
+}
+
+.asiento-modal__fieldset {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.asiento-modal__fieldset:last-of-type {
+  margin-bottom: 0;
+}
+
+.asiento-modal__legend {
+  display: block;
+  width: 100%;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+
+.asiento-modal__datetime .input {
+  max-width: 20rem;
+}
+
+.asiento-modal__split {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 720px) {
+  .asiento-modal__split {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem 1.25rem;
+    align-items: start;
+  }
+}
+
+.asiento-modal-section {
+  min-width: 0;
+}
+
+.asiento-modal-section__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.asiento-modal-section__title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.asiento-modal-section .btn-add-line {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.asiento-line-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.asiento-line-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 0.8rem;
+}
+
+.asiento-line-card__grid {
+  display: grid;
+  gap: 0.65rem 0.75rem;
+  align-items: end;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 540px) {
+  .asiento-line-card__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 10rem);
+  }
+
+  .asiento-line-card__grid--with-remove {
+    grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 10rem) auto;
+  }
+}
+
+.asiento-line-field {
+  min-width: 0;
+}
+
+.asiento-line-field label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
   margin-bottom: 0.35rem;
 }
 
-.asiento-form-section-head label {
-  margin: 0;
+.asiento-line-field select.text-input {
+  width: 100%;
 }
 
-.asiento-form-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+.asiento-line-remove {
+  justify-self: end;
+  padding: 0.45rem 0.55rem;
+  min-height: 2.25rem;
+  font-size: 0.8rem;
+  color: var(--danger);
+  border-color: rgba(196, 92, 92, 0.35);
+  background: transparent;
+}
+
+.asiento-line-remove:hover {
+  background: rgba(196, 92, 92, 0.1);
+  border-color: var(--danger);
+}
+
+@media (max-width: 539px) {
+  .asiento-line-remove {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+.asiento-modal__footer {
+  flex-shrink: 0;
+  padding: 0.85rem 1.25rem 1.1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.5rem;
+}
+
+.asiento-modal__footer .btn {
+  min-width: 6.5rem;
+}
+
+@media (max-width: 420px) {
+  .asiento-modal__footer .btn {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .btn {
@@ -612,6 +824,24 @@ select.text-input:focus {
 .modal h2 {
   margin: 0 0 1rem;
   font-size: 1.25rem;
+}
+
+/* Asiento: wins over generic .modal (padding, size, scroll) */
+.modal.modal--asiento {
+  position: relative;
+  width: min(880px, 100%);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: min(92vh, 900px);
+  overflow: hidden;
+}
+
+.modal.modal--asiento .asiento-modal__header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  padding-right: 2.5rem;
 }
 
 .row-selected {

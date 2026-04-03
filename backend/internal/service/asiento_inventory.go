@@ -28,13 +28,13 @@ var (
 type TanqueCantidad struct {
 	TanqueID      uint
 	Cantidad      decimal.Decimal
-	TipoOperacion string // "ingreso" | "egreso"
+	TipoOperacion string // ingreso | egreso | mantenimiento
 }
 
 type BalanzaCantidad struct {
 	BalanzaID     uint
 	Cantidad      decimal.Decimal
-	TipoOperacion string // "ingreso" | "egreso"
+	TipoOperacion string // ingreso | egreso | mantenimiento
 }
 
 type tanqueKey struct {
@@ -48,8 +48,12 @@ type balanzaKey struct {
 }
 
 func signedMovimiento(cantidad decimal.Decimal, tipo string) decimal.Decimal {
-	if strings.EqualFold(strings.TrimSpace(tipo), "egreso") {
+	t := strings.TrimSpace(strings.ToLower(tipo))
+	if t == "egreso" {
 		return cantidad.Neg()
+	}
+	if t == "mantenimiento" {
+		return decimal.Zero
 	}
 	return cantidad
 }
@@ -93,8 +97,8 @@ func mergeTanqueLines(lines []TanqueCantidad) ([]TanqueCantidad, error) {
 			return nil, errors.New("invalid tanque_id")
 		}
 		tipo := strings.TrimSpace(strings.ToLower(l.TipoOperacion))
-		if tipo != "ingreso" && tipo != "egreso" {
-			return nil, errors.New("tanque line tipo_operacion must be ingreso or egreso")
+		if tipo != "ingreso" && tipo != "egreso" && tipo != "mantenimiento" {
+			return nil, errors.New("tanque line tipo_operacion must be ingreso, egreso, or mantenimiento")
 		}
 		if !l.Cantidad.GreaterThan(decimal.Zero) {
 			return nil, ErrCantidadInvalid
@@ -125,8 +129,8 @@ func mergeBalanzaLines(lines []BalanzaCantidad) ([]BalanzaCantidad, error) {
 			return nil, errors.New("invalid balanza_id")
 		}
 		tipo := strings.TrimSpace(strings.ToLower(l.TipoOperacion))
-		if tipo != "ingreso" && tipo != "egreso" {
-			return nil, errors.New("balanza line tipo_operacion must be ingreso or egreso")
+		if tipo != "ingreso" && tipo != "egreso" && tipo != "mantenimiento" {
+			return nil, errors.New("balanza line tipo_operacion must be ingreso, egreso, or mantenimiento")
 		}
 		if !l.Cantidad.GreaterThan(decimal.Zero) {
 			return nil, ErrCantidadInvalid

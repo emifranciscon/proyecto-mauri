@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   apiFetch,
@@ -15,7 +15,10 @@ function formatAsientoFechaShort(iso: string): string {
 }
 
 function lineTipoLabel(tipo: string | undefined): string {
-  return tipo?.trim().toLowerCase() === "egreso" ? "Egreso" : "Ingreso";
+  const t = tipo?.trim().toLowerCase();
+  if (t === "egreso") return "Egreso";
+  if (t === "mantenimiento") return "Mantenimiento";
+  return "Ingreso";
 }
 
 function formatTanquesCell(a: Asiento): string {
@@ -45,12 +48,121 @@ function toDatetimeLocalValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-type Line = { id: string; refId: string; tipo_operacion: "ingreso" | "egreso" };
+type TipoOperacionLine = "ingreso" | "egreso" | "mantenimiento";
+type Line = { id: string; refId: string; tipo_operacion: TipoOperacionLine };
 
 let lineSeq = 0;
 function newLine(): Line {
   lineSeq += 1;
   return { id: `l-${lineSeq}-${Date.now()}`, refId: "", tipo_operacion: "ingreso" };
+}
+
+type EntityOption = { id: number; nombre: string };
+
+type AsientoLinesEditorProps = {
+  sectionTitle: string;
+  addButtonLabel: string;
+  entityLabel: string;
+  lines: Line[];
+  setLines: React.Dispatch<React.SetStateAction<Line[]>>;
+  options: EntityOption[];
+  disabled: boolean;
+};
+
+function AsientoLinesEditor({
+  sectionTitle,
+  addButtonLabel,
+  entityLabel,
+  lines,
+  setLines,
+  options,
+  disabled,
+}: AsientoLinesEditorProps) {
+  const canRemove = lines.length > 1;
+  return (
+    <section className="asiento-modal-section" aria-label={sectionTitle}>
+      <div className="asiento-modal-section__head">
+        <h3 className="asiento-modal-section__title">{sectionTitle}</h3>
+        <button
+          type="button"
+          className="btn btn-ghost btn-add-line"
+          disabled={disabled}
+          onClick={() => setLines((prev) => [...prev, newLine()])}
+        >
+          {addButtonLabel}
+        </button>
+      </div>
+      <ul className="asiento-line-list">
+        {lines.map((line, i) => (
+          <li key={line.id}>
+            <div className="asiento-line-card">
+              <div
+                className={
+                  "asiento-line-card__grid" +
+                  (canRemove ? " asiento-line-card__grid--with-remove" : "")
+                }
+              >
+                <div className="asiento-line-field">
+                  <label htmlFor={`${line.id}-entity`}>{entityLabel}</label>
+                  <select
+                    id={`${line.id}-entity`}
+                    className="text-input"
+                    value={line.refId}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setLines((prev) =>
+                        prev.map((x) => (x.id === line.id ? { ...x, refId: v } : x))
+                      );
+                    }}
+                    required={i === 0}
+                  >
+                    <option value="">Elegir…</option>
+                    {options.map((o) => (
+                      <option key={o.id} value={String(o.id)}>
+                        {o.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="asiento-line-field">
+                  <label htmlFor={`${line.id}-tipo`}>Operación</label>
+                  <select
+                    id={`${line.id}-tipo`}
+                    className="text-input"
+                    value={line.tipo_operacion}
+                    disabled={disabled}
+                    onChange={(e) => {
+                      const v = e.target.value as TipoOperacionLine;
+                      setLines((prev) =>
+                        prev.map((x) => (x.id === line.id ? { ...x, tipo_operacion: v } : x))
+                      );
+                    }}
+                  >
+                    <option value="ingreso">Ingreso</option>
+                    <option value="egreso">Egreso</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                  </select>
+                </div>
+                {canRemove && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost asiento-line-remove"
+                    disabled={disabled}
+                    onClick={() =>
+                      setLines((prev) => prev.filter((x) => x.id !== line.id))
+                    }
+                  >
+                    Quitar línea
+                  </button>
+                )}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 export function AsientosPage() {
@@ -64,6 +176,8 @@ export function AsientosPage() {
   const [tanqueLines, setTanqueLines] = useState<Line[]>([newLine()]);
   const [balanzaLines, setBalanzaLines] = useState<Line[]>([newLine()]);
   const [descripcion, setDescripcion] = useState("");
+  const [savingAsiento, setSavingAsiento] = useState(false);
+  const savingAsientoRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -82,6 +196,7 @@ export function AsientosPage() {
   }, [load]);
 
   function openModal() {
+    setError(null);
     setTanqueLines([newLine()]);
     setBalanzaLines([newLine()]);
     setFecha(toDatetimeLocalValue(new Date()));
@@ -91,6 +206,7 @@ export function AsientosPage() {
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
+    if (savingAsientoRef.current) return;
     setError(null);
     const tanquesPayload = tanqueLines
       .filter((l) => l.refId)
@@ -105,9 +221,11 @@ export function AsientosPage() {
         tipo_operacion: l.tipo_operacion,
       }));
     if (tanquesPayload.length === 0 || balanzasPayload.length === 0) {
-      setError("Agregá al menos un tanque y una balanza.");
+      setError("Agregá al menos un tanque y una balanza con datos completos.");
       return;
     }
+    savingAsientoRef.current = true;
+    setSavingAsiento(true);
     try {
       await apiFetch("/api/asientos", {
         method: "POST",
@@ -121,11 +239,24 @@ export function AsientosPage() {
       });
       setModal(false);
       setDescripcion("");
+      setError(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      savingAsientoRef.current = false;
+      setSavingAsiento(false);
     }
   }
+
+  const tanqueOptions: EntityOption[] = tanques.map((t) => ({
+    id: t.id,
+    nombre: t.nombre,
+  }));
+  const balanzaOptions: EntityOption[] = balanzas.map((b) => ({
+    id: b.id,
+    nombre: b.nombre,
+  }));
 
   return (
     <div>
@@ -144,7 +275,7 @@ export function AsientosPage() {
           Nuevo asiento
         </button>
       </div>
-      {error && <div className="error-banner">{error}</div>}
+      {error && !modal && <div className="error-banner">{error}</div>}
       <div className="table-wrap">
         <table>
           <thead>
@@ -181,165 +312,110 @@ export function AsientosPage() {
       </div>
 
       {modal && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setModal(false)}>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => !savingAsiento && setModal(false)}
+        >
           <div
             className="modal modal--asiento"
             role="dialog"
+            aria-modal="true"
             aria-labelledby="asiento-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="asiento-title">Nuevo asiento</h2>
-            <form onSubmit={create}>
-              <div className="field">
-                <label htmlFor="fecha">Fecha y hora</label>
-                <input
-                  id="fecha"
-                  className="input"
-                  type="datetime-local"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="field">
-                <div className="asiento-form-section-head">
-                  <label>Tanques</label>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
-                    onClick={() => setTanqueLines((prev) => [...prev, newLine()])}
-                  >
-                    + Agregar tanque
-                  </button>
-                </div>
-                {tanqueLines.map((line, i) => (
-                  <div key={line.id} className="asiento-form-line">
-                    <select
-                      className="text-input"
-                      value={line.refId}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setTanqueLines((prev) =>
-                          prev.map((x) => (x.id === line.id ? { ...x, refId: v } : x))
-                        );
-                      }}
-                      required={i === 0}
-                      aria-label="Tanque"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {tanques.map((t) => (
-                        <option key={t.id} value={String(t.id)}>
-                          {t.nombre}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="text-input"
-                      value={line.tipo_operacion}
-                      onChange={(e) => {
-                        const v = e.target.value as "ingreso" | "egreso";
-                        setTanqueLines((prev) =>
-                          prev.map((x) => (x.id === line.id ? { ...x, tipo_operacion: v } : x))
-                        );
-                      }}
-                      aria-label="Tipo de movimiento (tanque)"
-                    >
-                      <option value="ingreso">Ingreso</option>
-                      <option value="egreso">Egreso</option>
-                    </select>
-                    {tanqueLines.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() =>
-                          setTanqueLines((prev) => prev.filter((x) => x.id !== line.id))
-                        }
-                      >
-                        Quitar
-                      </button>
-                    )}
+            <button
+              type="button"
+              className="asiento-modal__close"
+              aria-label="Cerrar"
+              disabled={savingAsiento}
+              onClick={() => setModal(false)}
+            >
+              ×
+            </button>
+            <div className="asiento-modal__header">
+              <h2 id="asiento-title">Nuevo asiento</h2>
+              <p className="asiento-modal__header-lead">
+                Completá fecha, líneas de <strong>tanques</strong> y <strong>balanzas</strong>, y una
+                descripción. <strong>Mantenimiento</strong> registra el movimiento en el historial{" "}
+                <strong>sin cambiar el saldo</strong> del tanque ni de la balanza.
+              </p>
+            </div>
+
+            <form onSubmit={create} className="asiento-modal__form" noValidate>
+              <div className="asiento-modal__body">
+                {error && (
+                  <div className="asiento-modal__error" role="alert">
+                    {error}
                   </div>
-                ))}
-              </div>
-              <div className="field">
-                <div className="asiento-form-section-head">
-                  <label>Balanzas</label>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
-                    onClick={() => setBalanzaLines((prev) => [...prev, newLine()])}
-                  >
-                    + Agregar balanza
-                  </button>
-                </div>
-                {balanzaLines.map((line, i) => (
-                  <div key={line.id} className="asiento-form-line">
-                    <select
-                      className="text-input"
-                      value={line.refId}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setBalanzaLines((prev) =>
-                          prev.map((x) => (x.id === line.id ? { ...x, refId: v } : x))
-                        );
-                      }}
-                      required={i === 0}
-                      aria-label="Balanza"
-                    >
-                      <option value="">Seleccionar…</option>
-                      {balanzas.map((b) => (
-                        <option key={b.id} value={String(b.id)}>
-                          {b.nombre}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="text-input"
-                      value={line.tipo_operacion}
-                      onChange={(e) => {
-                        const v = e.target.value as "ingreso" | "egreso";
-                        setBalanzaLines((prev) =>
-                          prev.map((x) => (x.id === line.id ? { ...x, tipo_operacion: v } : x))
-                        );
-                      }}
-                      aria-label="Tipo de movimiento (balanza)"
-                    >
-                      <option value="ingreso">Ingreso</option>
-                      <option value="egreso">Egreso</option>
-                    </select>
-                    {balanzaLines.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() =>
-                          setBalanzaLines((prev) => prev.filter((x) => x.id !== line.id))
-                        }
-                      >
-                        Quitar
-                      </button>
-                    )}
+                )}
+
+                <fieldset className="asiento-modal__fieldset asiento-modal__datetime">
+                  <legend className="asiento-modal__legend">Fecha y hora del asiento</legend>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <input
+                      id="fecha"
+                      className="input"
+                      type="datetime-local"
+                      aria-label="Fecha y hora del asiento"
+                      value={fecha}
+                      disabled={savingAsiento}
+                      onChange={(e) => setFecha(e.target.value)}
+                      required
+                    />
                   </div>
-                ))}
+                </fieldset>
+
+                <div className="asiento-modal__split">
+                  <AsientoLinesEditor
+                    sectionTitle="Tanques"
+                    addButtonLabel="+ Otra línea"
+                    entityLabel="Tanque"
+                    lines={tanqueLines}
+                    setLines={setTanqueLines}
+                    options={tanqueOptions}
+                    disabled={savingAsiento}
+                  />
+                  <AsientoLinesEditor
+                    sectionTitle="Balanzas"
+                    addButtonLabel="+ Otra línea"
+                    entityLabel="Balanza"
+                    lines={balanzaLines}
+                    setLines={setBalanzaLines}
+                    options={balanzaOptions}
+                    disabled={savingAsiento}
+                  />
+                </div>
+
+                <fieldset className="asiento-modal__fieldset">
+                  <legend className="asiento-modal__legend">Descripción</legend>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <textarea
+                      id="desc"
+                      className="input"
+                      rows={4}
+                      placeholder="Detalle del movimiento, referencias, observaciones…"
+                      aria-label="Descripción del asiento"
+                      value={descripcion}
+                      disabled={savingAsiento}
+                      onChange={(e) => setDescripcion(e.target.value)}
+                      required
+                    />
+                  </div>
+                </fieldset>
               </div>
-              <div className="field">
-                <label htmlFor="desc">Descripción</label>
-                <textarea
-                  id="desc"
-                  className="input"
-                  rows={3}
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  required
-                />
-              </div>
-              <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setModal(false)}>
+
+              <div className="asiento-modal__footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={savingAsiento}
+                  onClick={() => setModal(false)}
+                >
                   Cancelar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Guardar
+                <button type="submit" className="btn btn-primary" disabled={savingAsiento}>
+                  {savingAsiento ? "Guardando…" : "Guardar asiento"}
                 </button>
               </div>
             </form>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,6 +9,7 @@ export function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   if (loading) {
     return (
@@ -21,7 +22,9 @@ export function LoginPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busyRef.current) return;
     setError(null);
+    busyRef.current = true;
     setBusy(true);
     try {
       if (mode === "login") await login(email, password);
@@ -29,6 +32,7 @@ export function LoginPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -91,11 +95,18 @@ export function LoginPage() {
               className="btn btn-primary"
               disabled={busy}
             >
-              {mode === "login" ? "Entrar" : "Registrarse"}
+              {busy
+                ? mode === "login"
+                  ? "Entrando…"
+                  : "Registrando…"
+                : mode === "login"
+                  ? "Entrar"
+                  : "Registrarse"}
             </button>
             <button
               type="button"
               className="btn btn-ghost"
+              disabled={busy}
               onClick={() =>
                 setMode((m) => (m === "login" ? "register" : "login"))
               }
